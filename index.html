@@ -3,17 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SU & SE Bucket List</title>
+  <title>SU & SE Bucket & Diary</title>
   <style>
     :root {
       --bg: #fdfbf7;
       --card-bg: #ffffff;
-      --text: #333333;
-      --gray: #8e8e93;
+      --text: #2c3437;
+      --gray: #8c9398;
       --accent-su: #4a90e2;
       --accent-se: #ff6b81;
       --accent-both: #9b51e0;
-      --border: #f0ede6;
+      --star: #f5a623;
+      --border: #ece8df;
     }
 
     * {
@@ -28,53 +29,77 @@
       color: var(--text);
       display: flex;
       justify-content: center;
-      padding: 24px 16px;
+      padding: 24px 16px 60px;
       min-height: 100vh;
     }
 
     .container {
       width: 100%;
-      max-width: 520px;
+      max-width: 560px;
     }
 
     header {
       text-align: center;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
 
     header h1 {
-      font-size: 1.6rem;
+      font-size: 1.65rem;
       font-weight: 700;
       letter-spacing: -0.5px;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
 
     header p {
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       color: var(--gray);
+    }
+
+    /* 상단 메인 네비게이션 (버킷리스트 vs 다이어리) */
+    .main-nav {
+      display: flex;
+      background: rgba(0, 0, 0, 0.05);
+      border-radius: 14px;
+      padding: 4px;
+      margin-bottom: 20px;
+    }
+
+    .main-nav-btn {
+      flex: 1;
+      border: none;
+      background: transparent;
+      padding: 10px 0;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--gray);
+      border-radius: 11px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .main-nav-btn.active {
+      background: #fff;
+      color: var(--text);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     }
 
     .card {
       background: var(--card-bg);
       border-radius: 18px;
       padding: 20px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
       margin-bottom: 20px;
+      border: 1px solid var(--border);
     }
 
-    /* 입력 폼 */
-    .input-form {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .creator-selector {
+    /* 공통 폼 스타일 */
+    .selector-group {
       display: flex;
       gap: 8px;
+      margin-bottom: 12px;
     }
 
-    .creator-selector label {
+    .selector-group label {
       flex: 1;
       text-align: center;
       padding: 8px 0;
@@ -86,29 +111,21 @@
       transition: all 0.2s ease;
     }
 
-    .creator-selector input {
-      display: none;
-    }
+    .selector-group input { display: none; }
 
-    .creator-selector input:checked + span {
-      display: block;
-      width: 100%;
-      height: 100%;
-    }
-
-    .creator-selector label:has(input[value="TOGETHER"]:checked) {
+    .selector-group label:has(input[value="TOGETHER"]:checked) {
       background: var(--accent-both);
       color: #fff;
       border-color: var(--accent-both);
     }
 
-    .creator-selector label:has(input[value="SU"]:checked) {
+    .selector-group label:has(input[value="SU"]:checked) {
       background: var(--accent-su);
       color: #fff;
       border-color: var(--accent-su);
     }
 
-    .creator-selector label:has(input[value="SE"]:checked) {
+    .selector-group label:has(input[value="SE"]:checked) {
       background: var(--accent-se);
       color: #fff;
       border-color: var(--accent-se);
@@ -119,22 +136,22 @@
       gap: 8px;
     }
 
-    .input-row input[type="text"] {
-      flex: 1;
+    input[type="text"], input[type="date"], textarea {
+      width: 100%;
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 12px 14px;
       font-size: 0.95rem;
       outline: none;
-      background: #fafafa;
+      background: #fafaf9;
     }
 
-    .input-row input[type="text"]:focus {
+    input:focus, textarea:focus {
       border-color: #bbb;
       background: #fff;
     }
 
-    .input-row button {
+    .submit-btn {
       background: #333;
       color: #fff;
       border: none;
@@ -142,21 +159,17 @@
       border-radius: 12px;
       font-weight: 600;
       cursor: pointer;
-      transition: opacity 0.2s ease;
+      flex-shrink: 0;
     }
 
-    .input-row button:active {
-      opacity: 0.8;
-    }
-
-    /* 탭 메뉴 */
-    .tabs {
+    /* 리스트 서브탭 */
+    .filter-tabs {
       display: flex;
       border-bottom: 1px solid var(--border);
       margin-bottom: 16px;
     }
 
-    .tab-btn {
+    .filter-btn {
       flex: 1;
       background: none;
       border: none;
@@ -168,11 +181,11 @@
       position: relative;
     }
 
-    .tab-btn.active {
+    .filter-btn.active {
       color: var(--text);
     }
 
-    .tab-btn.active::after {
+    .filter-btn.active::after {
       content: "";
       position: absolute;
       bottom: -1px;
@@ -182,30 +195,48 @@
       background: var(--text);
     }
 
-    /* 리스트 */
+    /* 버킷리스트 아이템 */
     .bucket-list {
       list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .bucket-item {
+      border-radius: 14px;
+      background: #fafaf9;
+      border: 1px solid var(--border);
+      padding: 14px 16px;
       display: flex;
       flex-direction: column;
       gap: 10px;
     }
 
-    .bucket-item {
+    .bucket-main-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 14px 16px;
-      border-radius: 14px;
-      background: #fafaf9;
-      border: 1px solid var(--border);
-      transition: all 0.2s ease;
     }
 
     .item-left {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       flex: 1;
+    }
+
+    .star-btn {
+      background: none;
+      border: none;
+      font-size: 1.25rem;
+      color: #d1d1d6;
+      cursor: pointer;
+      padding: 0 2px;
+    }
+
+    .star-btn.starred {
+      color: var(--star);
     }
 
     .custom-checkbox {
@@ -218,7 +249,6 @@
       justify-content: center;
       cursor: pointer;
       flex-shrink: 0;
-      transition: all 0.2s ease;
     }
 
     .custom-checkbox.checked {
@@ -251,27 +281,121 @@
       word-break: break-all;
     }
 
-    .bucket-item.completed {
-      opacity: 0.55;
-      background: #f4f4f4;
-    }
-
     .bucket-item.completed .item-text {
       text-decoration: line-through;
+      color: var(--gray);
     }
 
     .delete-btn {
       background: none;
       border: none;
-      color: #bbb;
-      font-size: 1.1rem;
+      color: #c7c7cc;
+      font-size: 1.2rem;
       cursor: pointer;
-      padding: 4px;
-      margin-left: 8px;
+      padding: 2px 6px;
     }
 
-    .delete-btn:hover {
-      color: #ff4d4f;
+    .delete-btn:hover { color: #ff4d4f; }
+
+    /* 버킷 완료 감상평 영역 */
+    .review-container {
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 12px;
+      border: 1px dashed var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .review-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--gray);
+      margin-bottom: 2px;
+    }
+
+    .review-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .review-tag {
+      font-size: 0.75rem;
+      font-weight: 700;
+      width: 32px;
+      text-align: center;
+      padding: 4px 0;
+      border-radius: 6px;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .review-input {
+      flex: 1;
+      padding: 7px 10px;
+      font-size: 0.85rem;
+      border-radius: 8px;
+    }
+
+    .review-save-btn {
+      padding: 7px 12px;
+      background: #eee;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .review-save-btn:hover { background: #e0e0e0; }
+
+    /* 다이어리 스타일 */
+    .diary-form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .diary-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .diary-item {
+      background: #fafaf9;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+    }
+
+    .diary-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .diary-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .diary-date {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--gray);
+    }
+
+    .diary-content {
+      font-size: 0.93rem;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
     }
 
     .empty-state {
@@ -286,147 +410,286 @@
 
   <div class="container">
     <header>
-      <h1>SU & SE 버킷리스트 📋</h1>
-      <p>함께 채워나가는 우리들의 기록</p>
+      <h1>SU & SE 기록소 💫</h1>
+      <p>우리들의 버킷리스트와 데이트 일기</p>
     </header>
 
-    <!-- 작성 영역 -->
-    <div class="card">
-      <form class="input-form" id="bucketForm">
-        <div class="creator-selector">
-          <label>
-            <input type="radio" name="creator" value="TOGETHER" checked />
-            <span>우리 둘 다</span>
-          </label>
-          <label>
-            <input type="radio" name="creator" value="SU" />
-            <span>SU의 추천</span>
-          </label>
-          <label>
-            <input type="radio" name="creator" value="SE" />
-            <span>SE의 추천</span>
-          </label>
-        </div>
-        <div class="input-row">
-          <input type="text" id="bucketInput" placeholder="하고 싶은 데이트를 적어보세요" required />
-          <button type="submit">추가</button>
-        </div>
-      </form>
-    </div>
+    <!-- 탭 전환 -->
+    <nav class="main-nav">
+      <button class="main-nav-btn active" onclick="switchView('bucket', this)">📋 버킷리스트</button>
+      <button class="main-nav-btn" onclick="switchView('diary', this)">📖 데이트 다이어리</button>
+    </nav>
 
-    <!-- 리스트 영역 -->
-    <div class="card">
-      <div class="tabs">
-        <button class="tab-btn active" onclick="setFilter('all', this)">전체 (<span id="countAll">0</span>)</button>
-        <button class="tab-btn" onclick="setFilter('active', this)">진행 중 (<span id="countActive">0</span>)</button>
-        <button class="tab-btn" onclick="setFilter('completed', this)">완료 (<span id="countCompleted">0</span>)</button>
+    <!-- 버킷리스트 화면 -->
+    <section id="bucketSection">
+      <div class="card">
+        <form class="bucket-form" id="bucketForm">
+          <div class="selector-group">
+            <label>
+              <input type="radio" name="creator" value="TOGETHER" checked />
+              <span>함께</span>
+            </label>
+            <label>
+              <input type="radio" name="creator" value="SU" />
+              <span>SU</span>
+            </label>
+            <label>
+              <input type="radio" name="creator" value="SE" />
+              <span>SE</span>
+            </label>
+          </div>
+          <div class="input-row">
+            <input type="text" id="bucketInput" placeholder="새로운 버킷리스트를 입력하세요" required />
+            <button type="submit" class="submit-btn">추가</button>
+          </div>
+        </form>
       </div>
 
-      <ul class="bucket-list" id="bucketList"></ul>
-      <div class="empty-state" id="emptyState" style="display: none;">리스트가 비어있어요.</div>
-    </div>
+      <div class="card">
+        <div class="filter-tabs">
+          <button class="filter-btn active" onclick="setBucketFilter('all', this)">전체 (<span id="countAll">0</span>)</button>
+          <button class="filter-btn" onclick="setBucketFilter('active', this)">진행 중 (<span id="countActive">0</span>)</button>
+          <button class="filter-btn" onclick="setBucketFilter('completed', this)">완료 (<span id="countCompleted">0</span>)</button>
+        </div>
+
+        <ul class="bucket-list" id="bucketList"></ul>
+        <div class="empty-state" id="bucketEmptyState" style="display: none;">버킷리스트가 비어있어요.</div>
+      </div>
+    </section>
+
+    <!-- 다이어리 화면 -->
+    <section id="diarySection" style="display: none;">
+      <div class="card">
+        <form class="diary-form" id="diaryForm">
+          <div class="selector-group">
+            <label>
+              <input type="radio" name="diaryAuthor" value="SU" checked />
+              <span>SU의 일기</span>
+            </label>
+            <label>
+              <input type="radio" name="diaryAuthor" value="SE" />
+              <span>SE의 일기</span>
+            </label>
+          </div>
+          <input type="date" id="diaryDate" required />
+          <textarea id="diaryContent" rows="3" placeholder="오늘 데이트는 어땠나요? 소중한 기록을 남겨보세요." required></textarea>
+          <button type="submit" class="submit-btn" style="padding: 12px 0;">일기 남기기</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <ul class="diary-list" id="diaryList"></ul>
+        <div class="empty-state" id="diaryEmptyState" style="display: none;">작성된 일기가 없어요.</div>
+      </div>
+    </section>
   </div>
 
   <script>
-    // 최초 실행 시 기본 리스트 세팅
-    const defaultList = [
-      { id: 1, text: "야구장 가서 치맥 먹으면서 응원하기", author: "TOGETHER", completed: false },
-      { id: 2, text: "서로 인생네컷 앨범 한 권 채우기", author: "TOGETHER", completed: false },
-      { id: 3, text: "둘만의 맛집 지도 리스트 10곳 채우기", author: "TOGETHER", completed: false }
+    // 기본 버킷리스트 샘플 데이터
+    const defaultBuckets = [
+      { id: 1, text: "야구장 가서 치맥 먹으면서 응원하기", author: "TOGETHER", starred: true, completed: false, reviews: { su: "", se: "" } },
+      { id: 2, text: "서로 인생네컷 앨범 한 권 채우기", author: "TOGETHER", starred: false, completed: false, reviews: { su: "", se: "" } },
+      { id: 3, text: "둘만의 맛집 지도 리스트 10곳 채우기", author: "TOGETHER", starred: false, completed: false, reviews: { su: "", se: "" } }
     ];
 
-    let bucketItems = JSON.parse(localStorage.getItem("su_se_bucket_items")) || defaultList;
-    let currentFilter = "all";
+    let bucketItems = JSON.parse(localStorage.getItem("su_se_bucket_items")) || defaultBuckets;
+    let diaryItems = JSON.parse(localStorage.getItem("su_se_diary_items")) || [];
+    let currentBucketFilter = "all";
 
-    const bucketForm = document.getElementById("bucketForm");
-    const bucketInput = document.getElementById("bucketInput");
-    const bucketList = document.getElementById("bucketList");
-    const emptyState = document.getElementById("emptyState");
+    // 날짜 입력 필드 오늘 날짜 기본 세팅
+    document.getElementById("diaryDate").valueAsDate = new Date();
 
-    function saveItems() {
-      localStorage.setItem("su_se_bucket_items", JSON.stringify(bucketItems));
-      render();
+    // 네비게이션 전환
+    function switchView(tab, btn) {
+      document.querySelectorAll(".main-nav-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+
+      document.getElementById("bucketSection").style.display = tab === "bucket" ? "block" : "none";
+      document.getElementById("diarySection").style.display = tab === "diary" ? "block" : "none";
     }
 
-    function toggleItem(id) {
-      bucketItems = bucketItems.map(item => 
+    /* --- 버킷리스트 로직 --- */
+    function saveBucketItems() {
+      localStorage.setItem("su_se_bucket_items", JSON.stringify(bucketItems));
+      renderBuckets();
+    }
+
+    function toggleBucketComplete(id) {
+      bucketItems = bucketItems.map(item =>
         item.id === id ? { ...item, completed: !item.completed } : item
       );
-      saveItems();
+      saveBucketItems();
     }
 
-    function deleteItem(id) {
+    function toggleBucketStar(id) {
+      bucketItems = bucketItems.map(item =>
+        item.id === id ? { ...item, starred: !item.starred } : item
+      );
+      saveBucketItems();
+    }
+
+    function deleteBucket(id) {
       bucketItems = bucketItems.filter(item => item.id !== id);
-      saveItems();
+      saveBucketItems();
     }
 
-    function setFilter(filter, element) {
-      currentFilter = filter;
-      document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
-      element.classList.add("active");
-      render();
+    function saveReview(id, authorKey) {
+      const input = document.getElementById(`review-${authorKey}-${id}`);
+      const val = input.value.trim();
+      bucketItems = bucketItems.map(item => {
+        if (item.id === id) {
+          const reviews = item.reviews || { su: "", se: "" };
+          reviews[authorKey] = val;
+          return { ...item, reviews };
+        }
+        return item;
+      });
+      saveBucketItems();
+      alert("감상평이 저장되었습니다!");
     }
 
-    function updateCounts() {
-      const activeCount = bucketItems.filter(i => !i.completed).length;
-      const completedCount = bucketItems.filter(i => i.completed).length;
+    function setBucketFilter(filter, el) {
+      currentBucketFilter = filter;
+      document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+      el.classList.add("active");
+      renderBuckets();
+    }
+
+    function renderBuckets() {
+      // 카운트 계산
       document.getElementById("countAll").textContent = bucketItems.length;
-      document.getElementById("countActive").textContent = activeCount;
-      document.getElementById("countCompleted").textContent = completedCount;
-    }
+      document.getElementById("countActive").textContent = bucketItems.filter(i => !i.completed).length;
+      document.getElementById("countCompleted").textContent = bucketItems.filter(i => i.completed).length;
 
-    function render() {
-      updateCounts();
-      bucketList.innerHTML = "";
+      const listEl = document.getElementById("bucketList");
+      listEl.innerHTML = "";
 
-      const filteredItems = bucketItems.filter(item => {
-        if (currentFilter === "active") return !item.completed;
-        if (currentFilter === "completed") return item.completed;
+      // 별표 우선 정렬 (starred: true가 상단)
+      let sorted = [...bucketItems].sort((a, b) => (b.starred ? 1 : 0) - (a.starred ? 1 : 0));
+
+      let filtered = sorted.filter(item => {
+        if (currentBucketFilter === "active") return !item.completed;
+        if (currentBucketFilter === "completed") return item.completed;
         return true;
       });
 
-      if (filteredItems.length === 0) {
-        emptyState.style.display = "block";
-      } else {
-        emptyState.style.display = "none";
-        filteredItems.forEach(item => {
-          const li = document.createElement("li");
-          li.className = `bucket-item ${item.completed ? "completed" : ""}`;
-          
-          li.innerHTML = `
+      document.getElementById("bucketEmptyState").style.display = filtered.length === 0 ? "block" : "none";
+
+      filtered.forEach(item => {
+        const reviews = item.reviews || { su: "", se: "" };
+        const li = document.createElement("li");
+        li.className = `bucket-item ${item.completed ? "completed" : ""}`;
+
+        // 완료 시 감상평 폼 표시
+        const reviewSectionHtml = item.completed ? `
+          <div class="review-container">
+            <span class="review-title">완료 후기 & 한 줄 감상</span>
+            <div class="review-row">
+              <span class="review-tag" style="background: var(--accent-su)">SU</span>
+              <input type="text" id="review-su-${item.id}" class="review-input" placeholder="SU의 감상을 적어주세요" value="${reviews.su || ""}">
+              <button class="review-save-btn" onclick="saveReview(${item.id}, 'su')">저장</button>
+            </div>
+            <div class="review-row">
+              <span class="review-tag" style="background: var(--accent-se)">SE</span>
+              <input type="text" id="review-se-${item.id}" class="review-input" placeholder="SE의 감상을 적어주세요" value="${reviews.se || ""}">
+              <button class="review-save-btn" onclick="saveReview(${item.id}, 'se')">저장</button>
+            </div>
+          </div>
+        ` : "";
+
+        li.innerHTML = `
+          <div class="bucket-main-row">
             <div class="item-left">
-              <div class="custom-checkbox ${item.completed ? "checked" : ""}" onclick="toggleItem(${item.id})"></div>
+              <button class="star-btn ${item.starred ? "starred" : ""}" onclick="toggleBucketStar(${item.id})" title="상단 고정">★</button>
+              <div class="custom-checkbox ${item.completed ? "checked" : ""}" onclick="toggleBucketComplete(${item.id})"></div>
               <span class="badge ${item.author}">${item.author}</span>
               <span class="item-text">${item.text}</span>
             </div>
-            <button class="delete-btn" onclick="deleteItem(${item.id})" title="삭제">×</button>
-          `;
-          bucketList.appendChild(li);
-        });
-      }
+            <button class="delete-btn" onclick="deleteBucket(${item.id})" title="삭제">×</button>
+          </div>
+          ${reviewSectionHtml}
+        `;
+        listEl.appendChild(li);
+      });
     }
 
-    bucketForm.addEventListener("submit", (e) => {
+    document.getElementById("bucketForm").addEventListener("submit", (e) => {
       e.preventDefault();
-      const text = bucketInput.value.trim();
+      const input = document.getElementById("bucketInput");
+      const text = input.value.trim();
       const author = document.querySelector('input[name="creator"]:checked').value;
 
       if (!text) return;
 
-      const newItem = {
+      bucketItems.unshift({
         id: Date.now(),
         text: text,
         author: author,
-        completed: false
-      };
+        starred: false,
+        completed: false,
+        reviews: { su: "", se: "" }
+      });
 
-      bucketItems.unshift(newItem);
-      saveItems();
-      bucketInput.value = "";
+      saveBucketItems();
+      input.value = "";
     });
 
-    // 초기 화면 렌더링
-    render();
+    /* --- 다이어리 로직 --- */
+    function saveDiaryItems() {
+      localStorage.setItem("su_se_diary_items", JSON.stringify(diaryItems));
+      renderDiary();
+    }
+
+    function deleteDiary(id) {
+      diaryItems = diaryItems.filter(item => item.id !== id);
+      saveDiaryItems();
+    }
+
+    function renderDiary() {
+      const listEl = document.getElementById("diaryList");
+      listEl.innerHTML = "";
+
+      document.getElementById("diaryEmptyState").style.display = diaryItems.length === 0 ? "block" : "none";
+
+      diaryItems.forEach(item => {
+        const li = document.createElement("li");
+        li.className = "diary-item";
+        li.innerHTML = `
+          <div class="diary-header">
+            <div class="diary-meta">
+              <span class="badge ${item.author}">${item.author}</span>
+              <span class="diary-date">${item.date}</span>
+            </div>
+            <button class="delete-btn" onclick="deleteDiary(${item.id})" title="삭제">×</button>
+          </div>
+          <div class="diary-content">${item.content}</div>
+        `;
+        listEl.appendChild(li);
+      });
+    }
+
+    document.getElementById("diaryForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const author = document.querySelector('input[name="diaryAuthor"]:checked').value;
+      const date = document.getElementById("diaryDate").value;
+      const content = document.getElementById("diaryContent").value.trim();
+
+      if (!content) return;
+
+      diaryItems.unshift({
+        id: Date.now(),
+        author: author,
+        date: date,
+        content: content
+      });
+
+      saveDiaryItems();
+      document.getElementById("diaryContent").value = "";
+    });
+
+    // 초기 렌더링 실행
+    renderBuckets();
+    renderDiary();
   </script>
 </body>
 </html>
