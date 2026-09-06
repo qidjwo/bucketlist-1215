@@ -55,7 +55,6 @@
       color: var(--gray);
     }
 
-    /* 상단 메인 네비게이션 (버킷리스트 vs 다이어리) */
     .main-nav {
       display: flex;
       background: rgba(0, 0, 0, 0.05);
@@ -92,7 +91,6 @@
       border: 1px solid var(--border);
     }
 
-    /* 공통 폼 스타일 */
     .selector-group {
       display: flex;
       gap: 8px;
@@ -162,7 +160,6 @@
       flex-shrink: 0;
     }
 
-    /* 리스트 서브탭 */
     .filter-tabs {
       display: flex;
       border-bottom: 1px solid var(--border);
@@ -195,8 +192,7 @@
       background: var(--text);
     }
 
-    /* 버킷리스트 아이템 */
-    .bucket-list {
+    .bucket-list, .diary-list {
       list-style: none;
       display: flex;
       flex-direction: column;
@@ -297,7 +293,6 @@
 
     .delete-btn:hover { color: #ff4d4f; }
 
-    /* 버킷 완료 감상평 영역 */
     .review-container {
       background: #ffffff;
       border-radius: 10px;
@@ -351,18 +346,10 @@
 
     .review-save-btn:hover { background: #e0e0e0; }
 
-    /* 다이어리 스타일 */
     .diary-form {
       display: flex;
       flex-direction: column;
       gap: 10px;
-    }
-
-    .diary-list {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
     }
 
     .diary-item {
@@ -405,6 +392,224 @@
       font-size: 0.9rem;
     }
   </style>
+
+  <!-- Firebase SDK 모듈 로드 -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { 
+      getFirestore, 
+      collection, 
+      addDoc, 
+      updateDoc, 
+      deleteDoc, 
+      doc, 
+      onSnapshot,
+      query,
+      orderBy 
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // -------------------------------------------------------------
+    // [중요] 본인의 Firebase 설정값으로 아래 객체를 교체하세요!
+    // -------------------------------------------------------------
+    const firebaseConfig = {
+      apiKey: "AIzaSyAZMXApUIf7RwB4Xt9RZCB_Zg96ZeoM1OI",
+      authDomain: "su-se-bucket.firebaseapp.com",
+      projectId: "su-se-bucket",
+      storageBucket: "su-se-bucket.firebasestorage.app",
+      messagingSenderId: "296242392789",
+      appId: "1:296242392789:web:402e350ed812c788253c5c"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let bucketItems = [];
+    let diaryItems = [];
+    let currentBucketFilter = "all";
+
+    // 실시간 리스너 (버킷리스트)
+    const bucketCol = collection(db, "buckets");
+    onSnapshot(query(bucketCol), (snapshot) => {
+      bucketItems = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderBuckets();
+    });
+
+    // 실시간 리스너 (다이어리)
+    const diaryCol = collection(db, "diaries");
+    onSnapshot(query(diaryCol, orderBy("createdAt", "desc")), (snapshot) => {
+      diaryItems = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderDiary();
+    });
+
+    // 전역 함수 등록
+    window.toggleBucketComplete = async (id, currentVal) => {
+      await updateDoc(doc(db, "buckets", id), { completed: !currentVal });
+    };
+
+    window.toggleBucketStar = async (id, currentVal) => {
+      await updateDoc(doc(db, "buckets", id), { starred: !currentVal });
+    };
+
+    window.deleteBucket = async (id) => {
+      if (confirm("정말 삭제할까요?")) {
+        await deleteDoc(doc(db, "buckets", id));
+      }
+    };
+
+    window.saveReview = async (id, authorKey) => {
+      const input = document.getElementById(`review-${authorKey}-${id}`);
+      const val = input.value.trim();
+      const target = bucketItems.find(i => i.id === id);
+      const reviews = target.reviews || { su: "", se: "" };
+      reviews[authorKey] = val;
+
+      await updateDoc(doc(db, "buckets", id), { reviews: reviews });
+      alert("감상평이 저장되었습니다!");
+    };
+
+    window.deleteDiary = async (id) => {
+      if (confirm("일기를 삭제할까요?")) {
+        await deleteDoc(doc(db, "diaries", id));
+      }
+    };
+
+    window.setBucketFilter = (filter, el) => {
+      currentBucketFilter = filter;
+      document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+      el.classList.add("active");
+      renderBuckets();
+    };
+
+    window.switchView = (tab, btn) => {
+      document.querySelectorAll(".main-nav-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById("bucketSection").style.display = tab === "bucket" ? "block" : "none";
+      document.getElementById("diarySection").style.display = tab === "diary" ? "block" : "none";
+    };
+
+    function renderBuckets() {
+      document.getElementById("countAll").textContent = bucketItems.length;
+      document.getElementById("countActive").textContent = bucketItems.filter(i => !i.completed).length;
+      document.getElementById("countCompleted").textContent = bucketItems.filter(i => i.completed).length;
+
+      const listEl = document.getElementById("bucketList");
+      listEl.innerHTML = "";
+
+      // 별표 우선 정렬
+      let sorted = [...bucketItems].sort((a, b) => {
+        if (b.starred !== a.starred) return b.starred ? 1 : -1;
+        return (b.createdAt || 0) - (a.createdAt || 0);
+      });
+
+      let filtered = sorted.filter(item => {
+        if (currentBucketFilter === "active") return !item.completed;
+        if (currentBucketFilter === "completed") return item.completed;
+        return true;
+      });
+
+      document.getElementById("bucketEmptyState").style.display = filtered.length === 0 ? "block" : "none";
+
+      filtered.forEach(item => {
+        const reviews = item.reviews || { su: "", se: "" };
+        const li = document.createElement("li");
+        li.className = `bucket-item ${item.completed ? "completed" : ""}`;
+
+        const reviewSectionHtml = item.completed ? `
+          <div class="review-container">
+            <span class="review-title">완료 후기 & 한 줄 감상</span>
+            <div class="review-row">
+              <span class="review-tag" style="background: var(--accent-su)">SU</span>
+              <input type="text" id="review-su-${item.id}" class="review-input" placeholder="SU의 감상" value="${reviews.su || ""}">
+              <button class="review-save-btn" onclick="saveReview('${item.id}', 'su')">저장</button>
+            </div>
+            <div class="review-row">
+              <span class="review-tag" style="background: var(--accent-se)">SE</span>
+              <input type="text" id="review-se-${item.id}" class="review-input" placeholder="SE의 감상" value="${reviews.se || ""}">
+              <button class="review-save-btn" onclick="saveReview('${item.id}', 'se')">저장</button>
+            </div>
+          </div>
+        ` : "";
+
+        li.innerHTML = `
+          <div class="bucket-main-row">
+            <div class="item-left">
+              <button class="star-btn ${item.starred ? "starred" : ""}" onclick="toggleBucketStar('${item.id}', ${item.starred || false})" title="상단 고정">★</button>
+              <div class="custom-checkbox ${item.completed ? "checked" : ""}" onclick="toggleBucketComplete('${item.id}', ${item.completed || false})"></div>
+              <span class="badge ${item.author}">${item.author}</span>
+              <span class="item-text">${item.text}</span>
+            </div>
+            <button class="delete-btn" onclick="deleteBucket('${item.id}')" title="삭제">×</button>
+          </div>
+          ${reviewSectionHtml}
+        `;
+        listEl.appendChild(li);
+      });
+    }
+
+    function renderDiary() {
+      const listEl = document.getElementById("diaryList");
+      listEl.innerHTML = "";
+
+      document.getElementById("diaryEmptyState").style.display = diaryItems.length === 0 ? "block" : "none";
+
+      diaryItems.forEach(item => {
+        const li = document.createElement("li");
+        li.className = "diary-item";
+        li.innerHTML = `
+          <div class="diary-header">
+            <div class="diary-meta">
+              <span class="badge ${item.author}">${item.author}</span>
+              <span class="diary-date">${item.date}</span>
+            </div>
+            <button class="delete-btn" onclick="deleteDiary('${item.id}')" title="삭제">×</button>
+          </div>
+          <div class="diary-content">${item.content}</div>
+        `;
+        listEl.appendChild(li);
+      });
+    }
+
+    // 버킷 폼 제출
+    document.getElementById("bucketForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const input = document.getElementById("bucketInput");
+      const text = input.value.trim();
+      const author = document.querySelector('input[name="creator"]:checked').value;
+      if (!text) return;
+
+      await addDoc(collection(db, "buckets"), {
+        text: text,
+        author: author,
+        starred: false,
+        completed: false,
+        reviews: { su: "", se: "" },
+        createdAt: Date.now()
+      });
+
+      input.value = "";
+    });
+
+    // 다이어리 폼 제출
+    document.getElementById("diaryForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const author = document.querySelector('input[name="diaryAuthor"]:checked').value;
+      const date = document.getElementById("diaryDate").value;
+      const content = document.getElementById("diaryContent").value.trim();
+      if (!content) return;
+
+      await addDoc(collection(db, "diaries"), {
+        author: author,
+        date: date,
+        content: content,
+        createdAt: Date.now()
+      });
+
+      document.getElementById("diaryContent").value = "";
+    });
+
+    // 날짜 입력 기본 세팅
+    document.getElementById("diaryDate").valueAsDate = new Date();
+  </script>
 </head>
 <body>
 
@@ -414,7 +619,6 @@
       <p>우리들의 버킷리스트와 데이트 일기</p>
     </header>
 
-    <!-- 탭 전환 -->
     <nav class="main-nav">
       <button class="main-nav-btn active" onclick="switchView('bucket', this)">📋 버킷리스트</button>
       <button class="main-nav-btn" onclick="switchView('diary', this)">📖 데이트 다이어리</button>
@@ -484,212 +688,5 @@
     </section>
   </div>
 
-  <script>
-    // 기본 버킷리스트 샘플 데이터
-    const defaultBuckets = [
-      { id: 1, text: "야구장 가서 치맥 먹으면서 응원하기", author: "TOGETHER", starred: true, completed: false, reviews: { su: "", se: "" } },
-      { id: 2, text: "서로 인생네컷 앨범 한 권 채우기", author: "TOGETHER", starred: false, completed: false, reviews: { su: "", se: "" } },
-      { id: 3, text: "둘만의 맛집 지도 리스트 10곳 채우기", author: "TOGETHER", starred: false, completed: false, reviews: { su: "", se: "" } }
-    ];
-
-    let bucketItems = JSON.parse(localStorage.getItem("su_se_bucket_items")) || defaultBuckets;
-    let diaryItems = JSON.parse(localStorage.getItem("su_se_diary_items")) || [];
-    let currentBucketFilter = "all";
-
-    // 날짜 입력 필드 오늘 날짜 기본 세팅
-    document.getElementById("diaryDate").valueAsDate = new Date();
-
-    // 네비게이션 전환
-    function switchView(tab, btn) {
-      document.querySelectorAll(".main-nav-btn").forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
-
-      document.getElementById("bucketSection").style.display = tab === "bucket" ? "block" : "none";
-      document.getElementById("diarySection").style.display = tab === "diary" ? "block" : "none";
-    }
-
-    /* --- 버킷리스트 로직 --- */
-    function saveBucketItems() {
-      localStorage.setItem("su_se_bucket_items", JSON.stringify(bucketItems));
-      renderBuckets();
-    }
-
-    function toggleBucketComplete(id) {
-      bucketItems = bucketItems.map(item =>
-        item.id === id ? { ...item, completed: !item.completed } : item
-      );
-      saveBucketItems();
-    }
-
-    function toggleBucketStar(id) {
-      bucketItems = bucketItems.map(item =>
-        item.id === id ? { ...item, starred: !item.starred } : item
-      );
-      saveBucketItems();
-    }
-
-    function deleteBucket(id) {
-      bucketItems = bucketItems.filter(item => item.id !== id);
-      saveBucketItems();
-    }
-
-    function saveReview(id, authorKey) {
-      const input = document.getElementById(`review-${authorKey}-${id}`);
-      const val = input.value.trim();
-      bucketItems = bucketItems.map(item => {
-        if (item.id === id) {
-          const reviews = item.reviews || { su: "", se: "" };
-          reviews[authorKey] = val;
-          return { ...item, reviews };
-        }
-        return item;
-      });
-      saveBucketItems();
-      alert("감상평이 저장되었습니다!");
-    }
-
-    function setBucketFilter(filter, el) {
-      currentBucketFilter = filter;
-      document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
-      el.classList.add("active");
-      renderBuckets();
-    }
-
-    function renderBuckets() {
-      // 카운트 계산
-      document.getElementById("countAll").textContent = bucketItems.length;
-      document.getElementById("countActive").textContent = bucketItems.filter(i => !i.completed).length;
-      document.getElementById("countCompleted").textContent = bucketItems.filter(i => i.completed).length;
-
-      const listEl = document.getElementById("bucketList");
-      listEl.innerHTML = "";
-
-      // 별표 우선 정렬 (starred: true가 상단)
-      let sorted = [...bucketItems].sort((a, b) => (b.starred ? 1 : 0) - (a.starred ? 1 : 0));
-
-      let filtered = sorted.filter(item => {
-        if (currentBucketFilter === "active") return !item.completed;
-        if (currentBucketFilter === "completed") return item.completed;
-        return true;
-      });
-
-      document.getElementById("bucketEmptyState").style.display = filtered.length === 0 ? "block" : "none";
-
-      filtered.forEach(item => {
-        const reviews = item.reviews || { su: "", se: "" };
-        const li = document.createElement("li");
-        li.className = `bucket-item ${item.completed ? "completed" : ""}`;
-
-        // 완료 시 감상평 폼 표시
-        const reviewSectionHtml = item.completed ? `
-          <div class="review-container">
-            <span class="review-title">완료 후기 & 한 줄 감상</span>
-            <div class="review-row">
-              <span class="review-tag" style="background: var(--accent-su)">SU</span>
-              <input type="text" id="review-su-${item.id}" class="review-input" placeholder="SU의 감상을 적어주세요" value="${reviews.su || ""}">
-              <button class="review-save-btn" onclick="saveReview(${item.id}, 'su')">저장</button>
-            </div>
-            <div class="review-row">
-              <span class="review-tag" style="background: var(--accent-se)">SE</span>
-              <input type="text" id="review-se-${item.id}" class="review-input" placeholder="SE의 감상을 적어주세요" value="${reviews.se || ""}">
-              <button class="review-save-btn" onclick="saveReview(${item.id}, 'se')">저장</button>
-            </div>
-          </div>
-        ` : "";
-
-        li.innerHTML = `
-          <div class="bucket-main-row">
-            <div class="item-left">
-              <button class="star-btn ${item.starred ? "starred" : ""}" onclick="toggleBucketStar(${item.id})" title="상단 고정">★</button>
-              <div class="custom-checkbox ${item.completed ? "checked" : ""}" onclick="toggleBucketComplete(${item.id})"></div>
-              <span class="badge ${item.author}">${item.author}</span>
-              <span class="item-text">${item.text}</span>
-            </div>
-            <button class="delete-btn" onclick="deleteBucket(${item.id})" title="삭제">×</button>
-          </div>
-          ${reviewSectionHtml}
-        `;
-        listEl.appendChild(li);
-      });
-    }
-
-    document.getElementById("bucketForm").addEventListener("submit", (e) => {
-      e.preventDefault();
-      const input = document.getElementById("bucketInput");
-      const text = input.value.trim();
-      const author = document.querySelector('input[name="creator"]:checked').value;
-
-      if (!text) return;
-
-      bucketItems.unshift({
-        id: Date.now(),
-        text: text,
-        author: author,
-        starred: false,
-        completed: false,
-        reviews: { su: "", se: "" }
-      });
-
-      saveBucketItems();
-      input.value = "";
-    });
-
-    /* --- 다이어리 로직 --- */
-    function saveDiaryItems() {
-      localStorage.setItem("su_se_diary_items", JSON.stringify(diaryItems));
-      renderDiary();
-    }
-
-    function deleteDiary(id) {
-      diaryItems = diaryItems.filter(item => item.id !== id);
-      saveDiaryItems();
-    }
-
-    function renderDiary() {
-      const listEl = document.getElementById("diaryList");
-      listEl.innerHTML = "";
-
-      document.getElementById("diaryEmptyState").style.display = diaryItems.length === 0 ? "block" : "none";
-
-      diaryItems.forEach(item => {
-        const li = document.createElement("li");
-        li.className = "diary-item";
-        li.innerHTML = `
-          <div class="diary-header">
-            <div class="diary-meta">
-              <span class="badge ${item.author}">${item.author}</span>
-              <span class="diary-date">${item.date}</span>
-            </div>
-            <button class="delete-btn" onclick="deleteDiary(${item.id})" title="삭제">×</button>
-          </div>
-          <div class="diary-content">${item.content}</div>
-        `;
-        listEl.appendChild(li);
-      });
-    }
-
-    document.getElementById("diaryForm").addEventListener("submit", (e) => {
-      e.preventDefault();
-      const author = document.querySelector('input[name="diaryAuthor"]:checked').value;
-      const date = document.getElementById("diaryDate").value;
-      const content = document.getElementById("diaryContent").value.trim();
-
-      if (!content) return;
-
-      diaryItems.unshift({
-        id: Date.now(),
-        author: author,
-        date: date,
-        content: content
-      });
-
-      saveDiaryItems();
-      document.getElementById("diaryContent").value = "";
-    });
-
-    // 초기 렌더링 실행
-    renderBuckets();
-    renderDiary();
-  </script>
 </body>
 </html>
